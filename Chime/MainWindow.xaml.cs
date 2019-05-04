@@ -16,10 +16,9 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using MIDIModificationFramework;
 using System.IO;
-using NAudio;
-using NAudio.Wave;
-using NAudio.Wave.SampleProviders;
 using System.Threading;
+using CSCore;
+using CSCore.Streams.SampleConverter;
 
 namespace Chime
 {
@@ -35,8 +34,8 @@ namespace Chime
 
         ParallelStream streams = new ParallelStream(File.Open("E:\\rendred.streams", FileMode.Create));
         //MIDIFile file = new MIDIFile("E:\\Midi\\tau2.5.9.mid");
-        MIDIFile file = new MIDIFile("E:\\Midi\\Clubstep.mid");
-        //MIDIFile file = new MIDIFile("E:\\Midi\\[Black MIDI]scarlet_zone-& The Young Descendant of Tepes V.2.mid");
+        //MIDIFile file = new MIDIFile("E:\\Midi\\Clubstep.mid");
+        MIDIFile file = new MIDIFile("E:\\Midi\\[Black MIDI]scarlet_zone-& The Young Descendant of Tepes V.2.mid");
         //MIDIFile file = new MIDIFile("E:\\Midi\\Ra Ra Rasputin Ultimate Black MIDI ~THE ULTIMATE APOCALYSE~ Final.mid");
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
@@ -70,109 +69,110 @@ namespace Chime
             
         }
 
-        void ConversionCompletedSaveall()
-        {
-            streams.CloseAllStreams();
-            for (int i = 0; i < file.TrackCount; i++)
-            {
-                var path = "E:\\m2w\\track" + i + ".wav";
-                var format = new WaveFormat(48000, 16, 2);
-                int read;
-                var fs = new StreamToFloatProvider(streams.GetStream(i, true), format);
-                var s = streams.GetStream(i, true);
-                float[] buffer = new float[48000];
-                byte[] bbuffer = new byte[buffer.Length * 4];
+        //void ConversionCompletedSaveall()
+        //{
+        //    streams.CloseAllStreams();
+        //    for (int i = 0; i < file.TrackCount; i++)
+        //    {
+        //        var path = "E:\\m2w\\track" + i + ".wav";
+        //        var format = new WaveFormat(48000, 16, 2);
+        //        int read;
+        //        var fs = new StreamToFloatProvider(streams.GetStream(i, true), format);
+        //        var s = streams.GetStream(i, true);
+        //        float[] buffer = new float[48000];
+        //        byte[] bbuffer = new byte[buffer.Length * 4];
 
-                Process ffmpeg = new Process();
-                ffmpeg.StartInfo = new ProcessStartInfo("ffmpeg", "-f f32le -ar 48000 -ac 2 -i - -c:a pcm_s16le " + path + " -y")
-                {
-                    RedirectStandardInput = true,
-                    UseShellExecute = false
-                };
-                ffmpeg.Start();
+        //        Process ffmpeg = new Process();
+        //        ffmpeg.StartInfo = new ProcessStartInfo("ffmpeg", "-f f32le -ar 48000 -ac 2 -i - -c:a pcm_s16le " + path + " -y")
+        //        {
+        //            RedirectStandardInput = true,
+        //            UseShellExecute = false
+        //        };
+        //        ffmpeg.Start();
 
-                //while((read = s.Read(bbuffer, 0, bbuffer.Length)) != 0)
-                //{
-                //    ffmpeg.StandardInput.BaseStream.Write(bbuffer, 0, bbuffer.Length);
-                //}
+        //        //while((read = s.Read(bbuffer, 0, bbuffer.Length)) != 0)
+        //        //{
+        //        //    ffmpeg.StandardInput.BaseStream.Write(bbuffer, 0, bbuffer.Length);
+        //        //}
 
-                while ((read = fs.Read(buffer, 0, buffer.Length)) != 0)
-                {
-                    Buffer.BlockCopy(buffer, 0, bbuffer, 0, read * 4);
-                    ffmpeg.StandardInput.BaseStream.Write(bbuffer, 0, read * 4);
-                }
-                ffmpeg.StandardInput.Close();
-            }
-        }
+        //        while ((read = fs.Read(buffer, 0, buffer.Length)) != 0)
+        //        {
+        //            Buffer.BlockCopy(buffer, 0, bbuffer, 0, read * 4);
+        //            ffmpeg.StandardInput.BaseStream.Write(bbuffer, 0, read * 4);
+        //        }
+        //        ffmpeg.StandardInput.Close();
+        //    }
+        //}
 
-        void ConversionCompletedMergeall()
-        {
-            streams.CloseAllStreams();
-            List<IPSampleProvider> providers = new List<IPSampleProvider>();
-            var format = new WaveFormat(48000, 16, 2);
-            for (int i = 0; i < file.TrackCount; i++)
-            {
-                IPSampleProvider sp = new StreamToFloatProvider(streams.GetStream(i, true), format);
-                sp = new LoudMaxStream(sp);
-                providers.Add(sp);
-            }
-            float[] buffer = new float[48000];
-            byte[] bbuffer = new byte[buffer.Length * 4];
-            var fs = new LoudMaxStream(new StreamMixer(providers.ToArray(), format));
+        //void ConversionCompletedMergeall()
+        //{
+        //    streams.CloseAllStreams();
+        //    List<IPSampleProvider> providers = new List<IPSampleProvider>();
+        //    var format = new WaveFormat(48000, 16, 2);
+        //    for (int i = 0; i < file.TrackCount; i++)
+        //    {
+        //        IPSampleProvider sp = new StreamToFloatProvider(streams.GetStream(i, true), format);
+        //        sp = new LoudMaxStream(sp);
+        //        providers.Add(sp);
+        //    }
+        //    float[] buffer = new float[48000];
+        //    byte[] bbuffer = new byte[buffer.Length * 4];
+        //    var fs = new LoudMaxStream(new StreamMixer(providers.ToArray(), format));
 
-            var path = "E:\\m2w\\_merged.wav";
-            int read;
+        //    var path = "E:\\m2w\\_merged.wav";
+        //    int read;
 
-            Process ffmpeg = new Process();
-            ffmpeg.StartInfo = new ProcessStartInfo("ffmpeg", "-f f32le -ar 48000 -ac 2 -i - -c:a pcm_s16le " + path + " -y")
-            {
-                RedirectStandardInput = true,
-                UseShellExecute = false
-            };
-            ffmpeg.Start();
+        //    Process ffmpeg = new Process();
+        //    ffmpeg.StartInfo = new ProcessStartInfo("ffmpeg", "-f f32le -ar 48000 -ac 2 -i - -c:a pcm_s16le " + path + " -y")
+        //    {
+        //        RedirectStandardInput = true,
+        //        UseShellExecute = false
+        //    };
+        //    ffmpeg.Start();
 
-            while ((read = fs.Read(buffer, 0, buffer.Length)) != 0)
-            {
-                Buffer.BlockCopy(buffer, 0, bbuffer, 0, read * 4);
-                ffmpeg.StandardInput.BaseStream.Write(bbuffer, 0, read * 4);
-            }
-            ffmpeg.StandardInput.Close();
-        }
+        //    while ((read = fs.Read(buffer, 0, buffer.Length)) != 0)
+        //    {
+        //        Buffer.BlockCopy(buffer, 0, bbuffer, 0, read * 4);
+        //        ffmpeg.StandardInput.BaseStream.Write(bbuffer, 0, read * 4);
+        //    }
+        //    ffmpeg.StandardInput.Close();
+        //}
 
-        void ConversionCompletedPlay()
-        {
-            streams.CloseAllStreams();
-            List<IPSampleProvider> providers = new List<IPSampleProvider>();
-            var format = WaveFormat.CreateIeeeFloatWaveFormat(48000, 2);
-            for (int i = 0; i < file.TrackCount; i++)
-            {
-                IPSampleProvider sp = new StreamToFloatProvider(streams.GetStream(i, true), format);
-                sp = new LoudMaxStream(sp);
-                providers.Add(sp);
-            }
-            float[] buffer = new float[48000];
-            byte[] bbuffer = new byte[buffer.Length * 4];
-            var fs = new LoudMaxStream(new StreamMixer(providers.ToArray(), format));
+        //void ConversionCompletedPlay()
+        //{
+        //    streams.CloseAllStreams();
+        //    List<IPSampleProvider> providers = new List<IPSampleProvider>();
+        //    var format = WaveFormat.CreateIeeeFloatWaveFormat(48000, 2);
+        //    for (int i = 0; i < file.TrackCount; i++)
+        //    {
+        //        IPSampleProvider sp = new StreamToFloatProvider(streams.GetStream(i, true), format);
+        //        sp = new LoudMaxStream(sp);
+        //        providers.Add(sp);
+        //    }
+        //    float[] buffer = new float[48000];
+        //    byte[] bbuffer = new byte[buffer.Length * 4];
+        //    var fs = new LoudMaxStream(new StreamMixer(providers.ToArray(), format));
 
-            using (var waveOut = new WaveOutEvent())
-            {
-                waveOut.Init(fs);
-                waveOut.Play();
-                while (waveOut.PlaybackState == PlaybackState.Playing)
-                {
-                    Thread.Sleep(100);
-                }
-            }
-        }
+        //    using (var waveOut = new WaveOutEvent())
+        //    {
+        //        waveOut.Init(fs);
+        //        waveOut.Play();
+        //        while (waveOut.PlaybackState == PlaybackState.Playing)
+        //        {
+        //            Thread.Sleep(100);
+        //        }
+        //    }
+        //}
 
         void ConversionCompletedPlayElement()
         {
             streams.CloseAllStreams();
-            List<IPSampleProvider> providers = new List<IPSampleProvider>();
-            var format = WaveFormat.CreateIeeeFloatWaveFormat(48000, 2);
+            List<ISampleSource> providers = new List<ISampleSource>();
+            var format = new WaveFormat(48000, 32, 2, AudioEncoding.IeeeFloat);
             for (int i = 0; i < file.TrackCount; i++)
             {
-                IPSampleProvider sp = new StreamToFloatProvider(streams.GetStream(i, true), format);
+                    var reader = new CSCore.Codecs.RAW.RawDataReader(streams.GetStream(i, true), format);
+                ISampleSource sp = WaveToSampleBase.CreateConverter(reader);
                 providers.Add(sp);
             }
 

@@ -1,14 +1,14 @@
-﻿using System;
+﻿using CSCore;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using NAudio.Wave;
 
 namespace ChimeCore
 {
-    public class VolumeControlProvider : IPSampleProvider
+    public class VolumeControlProvider : ISampleSource
     {
         public long Position { get => Stream.Position; set => Stream.Position = value; }
 
@@ -16,14 +16,19 @@ namespace ChimeCore
 
         public WaveFormat WaveFormat => Stream.WaveFormat;
 
-        public IPSampleProvider Stream { get; }
+        public ISampleSource Stream { get; }
+
+        double gain = 1;
+        public double Gain { get => 10 * Math.Log10(gain); set => gain = Math.Pow(10, value / 10); }
 
         public double Volume => 10 * (Math.Log10(startVol + (endVol - startVol) * Math.Min(1, lastRead.ElapsedMilliseconds / ((double)len / WaveFormat.SampleRate * 1000))));
+
+        public bool CanSeek => Stream.CanSeek;
 
         double lvolume = 0;
         double rvolume = 0;
 
-        public VolumeControlProvider(IPSampleProvider stream)
+        public VolumeControlProvider(ISampleSource stream)
         {
             Stream = stream;
         }
@@ -40,20 +45,28 @@ namespace ChimeCore
             double l;
             double r;
             startVol = (rvolume + lvolume) * 2;
+            float change = 1 - (float)read / WaveFormat.SampleRate / WaveFormat.Channels / 5;
             for (int i = 0; i < read / 2; i++)
             {
                 l = buffer[offset + i * 2];
                 r = buffer[offset + i * 2 + 1];
-                if (lvolume > l) lvolume = lvolume * 0.90;
+                if (lvolume > l) lvolume = lvolume * change;
                 else lvolume = l;
-                if (rvolume > r) rvolume = rvolume * 0.90;
+                if (rvolume > r) rvolume = rvolume * change;
                 else rvolume = r;
+                buffer[offset + i * 2] = (float)(l * gain);
+                buffer[offset + i * 2 + 1] = (float)(r * gain);
             }
             len = read / 2;
             lastRead.Reset();
             lastRead.Start();
             endVol = (rvolume + lvolume) * 2;
             return read;
+        }
+
+        public void Dispose()
+        {
+            Stream.Dispose();
         }
     }
 }

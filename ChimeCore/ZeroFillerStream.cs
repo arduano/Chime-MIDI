@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using NAudio.Wave;
+using CSCore;
 
 namespace ChimeCore
 {
-    public class ZeroFillerStream : IPSampleProvider
+    public class ZeroFillerStream : ISampleSource
     {
         public long Position
         {
@@ -23,9 +23,13 @@ namespace ChimeCore
 
         public WaveFormat WaveFormat => Source.WaveFormat;
 
-        public IPSampleProvider Source { get; }
+        public ISampleSource Source { get; }
 
-        public ZeroFillerStream(IPSampleProvider source)
+        public bool CanSeek => throw new NotImplementedException();
+
+        CSCore.WaveFormat IAudioSource.WaveFormat => Source.WaveFormat;
+
+        public ZeroFillerStream(ISampleSource source)
         {
             Source = source;
         }
@@ -39,6 +43,11 @@ namespace ChimeCore
                 for (int i = 0; i < count; i++) buffer[offset + i] = 0;
             }
             return count;
+        }
+
+        public void Dispose()
+        {
+            Source.Dispose();
         }
     }
 }

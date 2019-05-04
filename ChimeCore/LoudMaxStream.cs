@@ -3,24 +3,27 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using NAudio;
-using NAudio.Wave;
+using CSCore;
 
 namespace ChimeCore
 {
-    public class LoudMaxStream : IPSampleProvider
+    public class LoudMaxStream : ISampleSource
     {
-        public LoudMaxStream(IPSampleProvider provider)
+        public LoudMaxStream(ISampleSource provider)
         {
             Provider = provider;
             WaveFormat = provider.WaveFormat;
         }
 
         public WaveFormat WaveFormat { get; }
-        public IPSampleProvider Provider { get; }
+        public ISampleSource Provider { get; }
         public long Position { get => Provider.Position; set => Provider.Position = value; }
 
         public long Length => Provider.Length;
+
+        public bool CanSeek => Provider.CanSeek;
+
+        public double Strength { get => strength; set => strength = value; }
 
         double loudnessL = 1;
         double loudnessR = 1;
@@ -55,6 +58,11 @@ namespace ChimeCore
                 buffer[i + 1] = (float)(buffer[i + 1] / (loudnessR * strength + 2 * (1 - strength)) / 2);
             }
             return read;
+        }
+
+        public void Dispose()
+        {
+            Provider.Dispose();
         }
     }
 }

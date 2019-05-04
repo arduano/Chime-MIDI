@@ -63,9 +63,18 @@ namespace Chime
                         }
                         for (int i = currentTasks.Children.Count; i < Conversion.Tracks.Count; i++)
                         {
+                            //List<TrackProgress> progresses = new List<TrackProgress>();
                             var a = new TrackProgress(Conversion.Tracks[i]);
                             DockPanel.SetDock(a, Dock.Top);
                             currentTasks.Children.Add(a);
+                            //progresses.Add(a);
+                            //foreach (var c in currentTasks.Children) progresses.Add((TrackProgress)c);
+                            //currentTasks.Children.Clear();
+                            //foreach (var c in progresses)
+                            //{
+                            //    DockPanel.SetDock(c, Dock.Top);
+                            //    currentTasks.Children.Add(c);
+                            //}
                         }
                         foreach (var item in currentTasks.Children)
                         {

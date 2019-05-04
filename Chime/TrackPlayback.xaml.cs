@@ -30,15 +30,33 @@ namespace Chime
 
         public VolumeControlProvider Control { get; }
 
+        public Slider Gain { get => gain; }
+
+        double prevVol = double.PositiveInfinity;
+
         public void Update()
         {
             double vol = Control.Volume;
             if (double.IsNaN(vol)) vol = double.NegativeInfinity;
-            dbLabel.Content = vol.ToString() + "db";
-            if (vol < volume.Minimum) vol = volume.Minimum;
-            if (vol > volume.Maximum) vol = volume.Maximum;
-            if (vol != volume.Value)
-                volume.Value = vol;
+            if (vol < -100) vol = double.NegativeInfinity;
+            if (vol != prevVol)
+            {
+                string volstr = (vol + 10).ToString("#,##0.0") + "db";
+                if (Control.Gain < 0) volstr += "-";
+                else volstr += "+";
+                volstr += Math.Abs(Control.Gain).ToString("#,##0.0") + "db";
+                dbLabel.Content = volstr;
+                prevVol = vol;
+                if (vol < volume.Minimum) vol = volume.Minimum;
+                if (vol > volume.Maximum) vol = volume.Maximum;
+                if (vol != volume.Value)
+                    volume.Value = vol;
+            }
+        }
+
+        private void Gain_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            Control.Gain = gain.Value;
         }
     }
 }

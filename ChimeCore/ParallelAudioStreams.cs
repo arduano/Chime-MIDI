@@ -5,8 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using MIDIModificationFramework;
-using NAudio;
-using NAudio.Wave;
+using CSCore;
 
 namespace ChimeCore
 {
@@ -18,6 +17,6 @@ namespace ChimeCore
             streams = new ParallelStream(File.Open(filename, FileMode.Create));
         }
 
-        //public abstract  (int track);
+        public abstract  (int track);
     }
 }

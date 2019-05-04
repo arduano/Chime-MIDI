@@ -1,22 +1,24 @@
-﻿using NAudio.Wave;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using CSCore;
 
 namespace ChimeCore
 {
-    public class StreamMixer : IPSampleProvider
+    public class StreamMixer : ISampleSource
     {
         public WaveFormat WaveFormat { get; }
-        IPSampleProvider[] MixingStreams { get; }
+        public bool CanSeek { get; }
+        ISampleSource[] MixingStreams { get; }
         public long Position { get; set; }
         public long Length { get => MixingStreams.Select(s => s.Length).Max(); }
 
-        public StreamMixer(IPSampleProvider[] streams, WaveFormat format)
+        public StreamMixer(ISampleSource[] streams, WaveFormat format, bool canSeek)
         {
             WaveFormat = format;
+            CanSeek = canSeek;
             MixingStreams = streams;
         }
 
@@ -44,6 +46,11 @@ namespace ChimeCore
             }
             Position += maxread;
             return maxread;
+        }
+
+        public void Dispose()
+        {
+            foreach (var s in MixingStreams) s.Dispose();
         }
     }
 }

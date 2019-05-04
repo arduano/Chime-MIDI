@@ -14,7 +14,8 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using ChimeCore;
-using NAudio.Wave;
+using CSCore;
+using CSCore.SoundOut;
 
 namespace Chime
 {
@@ -23,18 +24,29 @@ namespace Chime
     /// </summary>
     public partial class RenderedPlayback : UserControl
     {
-        WaveOutEvent waveOut = new WaveOutEvent();
-        public RenderedPlayback(IPSampleProvider[] sources, WaveFormat format)
+        private ISoundOut GetSoundOut()
+        {
+            if (WasapiOut.IsSupportedOnCurrentPlatform)
+                return new WasapiOut();
+            else
+                return new DirectSoundOut();
+        }
+
+        ISoundOut waveOut;
+        public RenderedPlayback(ISampleSource[] sources, WaveFormat format)
         {
             InitializeComponent();
             Sources = sources;
-            IPSampleProvider[] loudmaxed = new IPSampleProvider[sources.Length];
+            ISampleSource[] loudmaxed = new ISampleSource[sources.Length];
+            Loudmaxes = new LoudMaxStream[sources.Length];
+            Volumes = new VolumeControlProvider[sources.Length];
             for (int i = 0; i < sources.Length; i++)
             {
-                loudmaxed[i] = new LoudMaxStream(sources[i]);
-                var vol = new VolumeControlProvider(loudmaxed[i]);
-                var t = new TrackPlayback(vol, "Track " + i);
-                loudmaxed[i] = vol;
+                Loudmaxes[i] = new LoudMaxStream(sources[i]);
+                loudmaxed[i] = Loudmaxes[i];
+                Volumes[i] = new VolumeControlProvider(loudmaxed[i]);
+                var t = new TrackPlayback(Volumes[i], "Track " + i);
+                loudmaxed[i] = Volumes[i];
                 tracksDock.Children.Add(t);
                 DockPanel.SetDock(t, Dock.Left);
                 t.Height = double.NaN;
@@ -42,14 +54,17 @@ namespace Chime
             }
             float[] buffer = new float[48000];
             byte[] bbuffer = new byte[buffer.Length * 4];
-            var fs = new LoudMaxStream(new StreamMixer(loudmaxed, format));
+            var fs = new LoudMaxStream(new StreamMixer(loudmaxed, format, true));
 
             FinalMix = new ZeroFillerStream(fs);
-            waveOut.Init(FinalMix);
+            waveOut = GetSoundOut();
+            waveOut.Initialize(FinalMix.ToWaveSource());
         }
 
-        public IPSampleProvider[] Sources { get; }
-        public IPSampleProvider FinalMix { get; }
+        public ISampleSource[] Sources { get; }
+        public LoudMaxStream[] Loudmaxes { get; }
+        public VolumeControlProvider[] Volumes { get; }
+        public ISampleSource FinalMix { get; }
 
         bool paused = false;
 
@@ -80,29 +95,26 @@ namespace Chime
         {
             return Task.Run(() =>
             {
-                Task volumes = Task.Run(() => {
-                    while (!ended)
-                    {
-                        Dispatcher.Invoke(() =>
-                        {
-                            foreach (var c in tracksDock.Children)
-                            {
-                                var t = (TrackPlayback)c;
-                                t.Update();
-                            }
-                        });
-                        Thread.Sleep(20);
-                    }
-                });
                 waveOut.Play();
                 while (!ended)
                 {
                     if (FinalMix.Position == FinalMix.Length && !paused)
                         Dispatcher.Invoke(() => TogglePause());
-                    Dispatcher.Invoke(() => timeSlider.Value = FinalMix.Position / (double)FinalMix.Length);
-                    Thread.Sleep(20);
+
+                    bool ended = false;
+                    Dispatcher.Invoke(() =>
+                    {
+                        timeSlider.Value = FinalMix.Position / (double)FinalMix.Length;
+                        foreach (var c in tracksDock.Children)
+                        {
+                            var t = (TrackPlayback)c;
+                            t.Update();
+                        }
+                        ended = true;
+                    });
+                    SpinWait.SpinUntil(() => ended);
+                    Thread.Sleep(50);
                 }
-                volumes.GetAwaiter().GetResult();
             });
         }
 
@@ -111,6 +123,44 @@ namespace Chime
             long pos = (long)(FinalMix.Length * timeSlider.Value);
             pos -= pos % 2;
             FinalMix.Position = pos;
+        }
+
+        private void LoudmaxStrength_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            try
+            {
+                foreach (var l in Loudmaxes) l.Strength = loudmaxStrength.Value;
+            }
+            catch { }
+        }
+
+        private void SortButton_Click(object sender, RoutedEventArgs e)
+        {
+            TrackPlayback[] playbacks = new TrackPlayback[tracksDock.Children.Count];
+            int i = 0;
+            foreach (var c in tracksDock.Children) playbacks[i++] = (TrackPlayback)c;
+            var volumes = playbacks.Select(v => v.Control.Volume).ToArray();
+            Array.Sort(volumes, playbacks);
+
+            tracksDock.Children.Clear();
+            foreach (var t in playbacks.Reverse())
+            {
+                tracksDock.Children.Add(t);
+                DockPanel.SetDock(t, Dock.Left);
+                t.Height = double.NaN;
+            }
+        }
+
+        private void ResetVolumes_Click(object sender, RoutedEventArgs e)
+        {
+            if (MessageBox.Show("Are you sure you want to reset ALL volume sliders?", "Reset", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    foreach (var t in tracksDock.Children) ((TrackPlayback)t).Gain.Value = 0;
+                }
+                catch { }
+            }
         }
     }
 }
