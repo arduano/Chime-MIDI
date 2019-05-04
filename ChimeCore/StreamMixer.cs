@@ -1,0 +1,49 @@
+﻿using NAudio.Wave;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ChimeCore
+{
+    public class StreamMixer : IPSampleProvider
+    {
+        public WaveFormat WaveFormat { get; }
+        IPSampleProvider[] MixingStreams { get; }
+        public long Position { get; set; }
+        public long Length { get => MixingStreams.Select(s => s.Length).Max(); }
+
+        public StreamMixer(IPSampleProvider[] streams, WaveFormat format)
+        {
+            WaveFormat = format;
+            MixingStreams = streams;
+        }
+
+        public int Read(float[] buffer, int offset, int count)
+        {
+            int maxread = 0;
+            float[] buf = new float[count];
+            for (int i = 0; i < count; i++)
+            {
+                buffer[i + offset] = 0;
+            }
+            foreach (var stream in MixingStreams)
+            {
+                if (Position >= stream.Length) continue;
+                if(Position != stream.Position)
+                {
+                    stream.Position = Position;
+                }
+                int read = stream.Read(buf, 0, count);
+                for(int i = 0; i < read; i++)
+                {
+                    buffer[i + offset] += buf[i];
+                }
+                if (maxread < read) maxread = read;
+            }
+            Position += maxread;
+            return maxread;
+        }
+    }
+}
