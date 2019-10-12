@@ -30,24 +30,27 @@ namespace ChimeCore
             {
                 buffer[i + offset] = 0;
             }
+            //Parallel.ForEach(MixingStreams, stream =>
             foreach (var stream in MixingStreams)
             {
-                if (Position >= stream.Length) continue;
-                if(Position != stream.Position)
+                if (Position < stream.Length)
                 {
-                    stream.Position = Position;
+                    if (Position != stream.Position)
+                    {
+                        stream.Position = Position;
+                    }
+                    int read = stream.Read(buf, 0, count);
+                    for (int i = 0; i < read; i++)
+                    {
+                        buffer[i + offset] += buf[i];
+                    }
+                    if (maxread < read) maxread = read;
                 }
-                int read = stream.Read(buf, 0, count);
-                for(int i = 0; i < read; i++)
-                {
-                    buffer[i + offset] += buf[i];
-                }
-                if (maxread < read) maxread = read;
             }
+            //);
             Position += maxread;
             return maxread;
         }
-
         public void Dispose()
         {
             foreach (var s in MixingStreams) s.Dispose();

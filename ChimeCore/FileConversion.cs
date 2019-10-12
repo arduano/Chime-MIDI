@@ -7,13 +7,14 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using CSCore;
 
 namespace ChimeCore
 {
     public class FileConversion
     {
+        ParallelMergeStreams AudioOutput;
         public List<AsyncProgress> Tracks { get; } = new List<AsyncProgress>();
-        Func<int, Stream> getOutput;
         MIDIFile file;
         public int MaxThreads { get; }
         public int Samplerate { get; }
@@ -24,10 +25,12 @@ namespace ChimeCore
 
         bool cancelled = false;
 
-        public FileConversion(MIDIFile file, int maxThreads, int samplerate, int voices, Func<int, Stream> getOutput)
+        public FileConversion(MIDIFile file, int maxThreads, int samplerate, int voices, ParallelMergeStreams audioOutput)
         {
+            BASSMIDI.Init(samplerate);
+            BASSMIDI.LoadDefaultSoundfont();
             TrackRendered = new bool[file.TrackCount];
-            this.getOutput = getOutput;
+            AudioOutput = audioOutput;
             this.file = file;
             MaxThreads = maxThreads;
             Samplerate = samplerate;
@@ -66,15 +69,22 @@ namespace ChimeCore
                         m2w.Start();
                         Stream send = m2w.StandardInput.BaseStream;
 
-                        Stream write = getOutput(i);
+                        ISampleWriter write = AudioOutput.GetWriter();
                         var copytask = Task.Run(() =>
                         {
                             Stream m2wout = m2w.StandardOutput.BaseStream;
-                            byte[] buffer = new byte[2048 * 64];
+                            byte[] buffer = new byte[2048 * 2048];
                             int read = 0;
-                            while ((read = m2wout.Read(buffer, 0, buffer.Length)) != 0)
+                            unsafe
                             {
-                                write.Write(buffer, 0, read);
+                                fixed (byte* buff = buffer)
+                                {
+                                    float* fbuff = (float*)buff;
+                                    while ((read = m2wout.Read(buffer, 0, buffer.Length)) != 0)
+                                    {
+                                        write.Write(fbuff, 0, read / 4);
+                                    }
+                                }
                             }
                         });
 
@@ -90,7 +100,6 @@ namespace ChimeCore
                         send.Write(bytes, 0, bytes.Length);
                         send.Close();
                         copytask.GetAwaiter().GetResult();
-                        write.Close();
                     });
                     var p = new AsyncProgress(process, () => track.Progress, i);
                     lock (Tracks)

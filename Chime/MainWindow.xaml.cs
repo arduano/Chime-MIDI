@@ -18,6 +18,7 @@ using MIDIModificationFramework;
 using System.IO;
 using System.Threading;
 using CSCore;
+using CSCore.Codecs.WAV;
 using CSCore.Streams.SampleConverter;
 
 namespace Chime
@@ -32,19 +33,26 @@ namespace Chime
             InitializeComponent();
         }
 
-        ParallelStream streams = new ParallelStream(File.Open("E:\\rendred.streams", FileMode.Create));
+        ParallelMergeStreams streams;
         //MIDIFile file = new MIDIFile("E:\\Midi\\tau2.5.9.mid");
         //MIDIFile file = new MIDIFile("E:\\Midi\\Clubstep.mid");
+        //MIDIFile file = new MIDIFile("E:\\Midi\\TN3_Divided\\The Nuker 3 F3.mid");
         MIDIFile file = new MIDIFile("E:\\Midi\\[Black MIDI]scarlet_zone-& The Young Descendant of Tepes V.2.mid");
         //MIDIFile file = new MIDIFile("E:\\Midi\\Ra Ra Rasputin Ultimate Black MIDI ~THE ULTIMATE APOCALYSE~ Final.mid");
+
+        WaveFormat format = new WaveFormat(48000, 32, 2, AudioEncoding.IeeeFloat);
+
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            
+            //streams = new ParallelRawStreams("E:\\rendred.streams", new WaveFormat(48000, 32, 2, AudioEncoding.IeeeFloat), 4096 * 4096);
+            //streams = new ParallelRawStreams("F:\\rendred.streams", new WaveFormat(48000, 32, 2, AudioEncoding.IeeeFloat), 4096 * 4096);
+            //streams = new ParallelOggStreams("E:\\rendred.streams", new WaveFormat(48000, 32, 2, AudioEncoding.IeeeFloat), 4096 * 4096);
+            //streams = new ParallelAACStreams("E:\\rendred.streams", new WaveFormat(48000, 32, 2, AudioEncoding.IeeeFloat), 4096 * 4096);
+
+            streams = new ParallelMergeStreams(format);
+
             file.Parse();
-            var convert = new FileConversion(file, 16, 48000, 500, (i) =>
-            {
-                return new BufferedStream(streams.GetStream(i), 4096 * 4096);
-            });
+            var convert = new FileConversion(file, 16, 48000, 500, streams);
 
             //var convert = new FileConversion(file, 16, 48000, 500, (i) =>
             //{
@@ -166,23 +174,33 @@ namespace Chime
 
         void ConversionCompletedPlayElement()
         {
-            streams.CloseAllStreams();
-            List<ISampleSource> providers = new List<ISampleSource>();
-            var format = new WaveFormat(48000, 32, 2, AudioEncoding.IeeeFloat);
-            for (int i = 0; i < file.TrackCount; i++)
+            streams.Position = 0;
+            var s = streams.ToWaveSource(32);
+            var dest = new WaveWriter(File.Open("E:\\test.wav", FileMode.Create), format);
+            var read = 0;
+            byte[] buff = new byte[1024 * 16];
+            while((read = s.Read(buff, 0, buff.Length)) != 0)
             {
-                    var reader = new CSCore.Codecs.RAW.RawDataReader(streams.GetStream(i, true), format);
-                ISampleSource sp = WaveToSampleBase.CreateConverter(reader);
-                providers.Add(sp);
+                dest.Write(buff, 0, read);
             }
+            dest.Dispose();
+            Console.WriteLine("done");
+            //streams.CloseAllStreams();
+            //List<ISampleSource> providers = new List<ISampleSource>();
+            //for (int i = 0; i < file.TrackCount; i++)
+            //{
+            //        var reader = streams.GetReader(i);
+            //    ISampleSource sp = new WaveToSampleReader(reader, format);
+            //    providers.Add(sp);
+            //}
 
-            var playback = new RenderedPlayback(providers.ToArray(), format);
-            mainGrid.Children.Clear();
-            mainGrid.Children.Add(playback);
-            playback.HorizontalAlignment = HorizontalAlignment.Stretch;
-            playback.VerticalAlignment = VerticalAlignment.Stretch;
-            playback.Width = playback.Height = double.NaN;
-            playback.Start();
+            //var playback = new RenderedPlayback(providers.ToArray(), format);
+            //mainGrid.Children.Clear();
+            //mainGrid.Children.Add(playback);
+            //playback.HorizontalAlignment = HorizontalAlignment.Stretch;
+            //playback.VerticalAlignment = VerticalAlignment.Stretch;
+            //playback.Width = playback.Height = double.NaN;
+            //playback.Start();
         }
     }
 }

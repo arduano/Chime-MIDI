@@ -104,7 +104,9 @@ namespace Chime
                     bool ended = false;
                     Dispatcher.Invoke(() =>
                     {
+                        autoSlider = true;
                         timeSlider.Value = FinalMix.Position / (double)FinalMix.Length;
+                        autoSlider = false;
                         foreach (var c in tracksDock.Children)
                         {
                             var t = (TrackPlayback)c;
@@ -118,8 +120,10 @@ namespace Chime
             });
         }
 
+        bool autoSlider = false;
         private void TimeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
+            if (autoSlider) return;
             long pos = (long)(FinalMix.Length * timeSlider.Value);
             pos -= pos % 2;
             FinalMix.Position = pos;

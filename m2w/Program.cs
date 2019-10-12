@@ -66,7 +66,7 @@ namespace m2w
                 if (samplerate == -1) throw new Exception("Sample rate not defined. Use --samplerate or -sr");
                 bass = new BASSMIDI(samplerate, voices);
                 bass.LoadDefaultSoundfont();
-
+                
                 input = new BufferedStream(Console.OpenStandardInput());
                 output = new BufferedStream(Console.OpenStandardOutput());
 

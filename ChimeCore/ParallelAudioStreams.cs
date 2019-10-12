@@ -9,14 +9,22 @@ using CSCore;
 
 namespace ChimeCore
 {
-    class ParallelAudioStreams
+    public abstract class ParallelAudioStreams
     {
-        ParallelStream streams;
-        public ParallelAudioStreams(string filename)
+        protected ParallelStream streams;
+        public ParallelAudioStreams(string filename, WaveFormat waveFormat, int bufferSize)
         {
             streams = new ParallelStream(File.Open(filename, FileMode.Create));
+            WaveFormat = waveFormat;
+            BufferSize = bufferSize;
         }
 
-        public abstract  (int track);
+        public WaveFormat WaveFormat { get; }
+        public int BufferSize { get; }
+
+        public abstract IWaveSource GetReader(int track);
+        public abstract IDisposableWritable GetWriter(int track);
+
+        public void CloseAllStreams() => streams.CloseAllStreams();
     }
 }
